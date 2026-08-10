@@ -12,9 +12,14 @@ let sessionToken = null;
 // ---- LOGIN ----
 async function login() {
     var username = document.getElementById('username').value.trim();
+    var password = document.getElementById('password').value;
 
     if (!username) {
         document.getElementById('login-error').innerText = 'Please enter your corporate email address.';
+        return;
+    }
+    if (!password) {
+        document.getElementById('login-error').innerText = 'Please enter your password.';
         return;
     }
 
@@ -22,7 +27,7 @@ async function login() {
         var res = await fetch(BACKEND + '/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: username })
+            body: JSON.stringify({ username: username, password: password })
         });
         var data = await res.json();
 
@@ -44,7 +49,7 @@ async function login() {
             document.getElementById('login-error').innerText = data.error || 'Authentication failed.';
         }
     } catch (err) {
-        document.getElementById('login-error').innerText = 'Cannot connect to backend server. Ensure Flask is running on port 8001.';
+        document.getElementById('login-error').innerText = 'Cannot connect to backend server. Ensure Flask is running on port 8002.';
     }
 }
 
@@ -148,6 +153,8 @@ function logout() {
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('login-error').innerText = '';
     document.getElementById('username').value = '';
+    var pwd = document.getElementById('password');
+    if (pwd) pwd.value = '';
 }
 
 // ---- START NEW CHAT ----

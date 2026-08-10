@@ -67,17 +67,61 @@ class ContextResolver:
             return
 
         # ── 2. Reference / Pronoun Resolution ("it", "that", "previous one") ──
-        has_it = bool(re.search(r"\b(it|this|that|its|approved amount|requested amount|who approved|what for)\b", q_lower))
+        has_it = bool(re.search(r"\b(it|this|that|its|approved amount|requested amount|who approved|what for|whom|who created|who submitted|who made|by whom)\b", q_lower))
         wants_details = bool(re.search(r"\b(details?|show|list)\b", q_lower))
         has_previous_one = "previous" in q_lower or "last one" in q_lower or "before" in q_lower
         
+        is_follow_up = (
+            has_it or has_previous_one or wants_details or
+            any(w in q_lower for w in [
+                "there", "total", "sum", "average", "avg", "mean", 
+                "max", "min", "highest", "lowest", "count", "how many", 
+                "who", "when", "what", "where", "compare", "which", "instead", 
+                "details", "more", "approved", "pending", "rejected", "reimbursement"
+            ])
+            or (
+                plan.intent in (QueryIntent.ANALYTICS, QueryIntent.LIST_REQUISITIONS, QueryIntent.GET_LATEST_REQUISITION)
+                and not plan.filters.get("status")
+                and not plan.filters.get("description_keyword")
+                and (not plan.date_range or (not plan.date_range.start and not plan.date_range.end))
+                and not plan.target_employee_id
+                and not plan.target_employee_name
+            )
+        )
+        
         # Check if the query is a follow-up reference
-        if (has_it or has_previous_one) and context.last_verified_result:
-            plan.is_follow_up = True
-            plan.subject_scope = context.last_subject_scope or plan.subject_scope
-            plan.target_employee_id = context.last_target_employee_id or plan.target_employee_id
-            plan.target_employee_name = user.employee_name if plan.target_employee_id == user.employee_id else None
-            plan.filters = dict(context.last_filters)
+        if is_follow_up and context.last_plan:
+            # Check if there is a target employee mismatch/change
+            prev_emp = context.last_plan.target_employee_id or context.last_plan.target_employee_name
+            new_emp = plan.target_employee_id or plan.target_employee_name
+            
+            # If the new query contains "all" keyword, we treat it as broadening scope
+            contains_all = "all" in q_lower
+            
+            # If the new query explicitly introduces a new/different employee target,
+            # or broadens scope, and contains no relative pronouns referencing the previous turn,
+            # then it is a new unrelated query and should NOT inherit.
+            has_pronouns = has_it or has_previous_one or bool(re.search(r"\b(his|her|their|him|them)\b", q_lower))
+            if (new_emp and (new_emp != prev_emp) and not has_pronouns) or (contains_all and not has_pronouns):
+                logger.info("ContextResolver: New target employee or broadened scope query detected. Starting a new fresh context.")
+            else:
+                plan.is_follow_up = True
+                
+                # Inherit scope & target employee if not explicitly overridden in the new plan
+                if not plan.target_employee_id and not plan.target_employee_name:
+                    plan.subject_scope = context.last_plan.subject_scope
+                    plan.target_employee_id = context.last_plan.target_employee_id
+                    plan.target_employee_name = context.last_plan.target_employee_name
+
+                # Inherit filters (status, description_keyword, etc.)
+                for key, val in context.last_plan.filters.items():
+                    if key != "requested_detail" and val is not None and key not in plan.filters:
+                        plan.filters[key] = val
+
+                # Inherit date range if not explicitly overridden in the new plan
+                has_new_date = plan.date_range and (plan.date_range.start or plan.date_range.end)
+                if not has_new_date and context.last_plan.date_range and (context.last_plan.date_range.start or context.last_plan.date_range.end):
+                    plan.date_range = context.last_plan.date_range
 
             # A. Resolve "previous one" to the previous requisition in the last result set
             if has_previous_one and context.latest_selection_single and context.full_requisition_ids:
@@ -98,14 +142,16 @@ class ContextResolver:
                     logger.warning(f"ContextResolver index lookup failed: {e}")
 
             # B. Resolve "it" to the active requisition
-            if context.latest_selection_single:
+            if (has_it or has_previous_one) and context.latest_selection_single:
                 plan.exact_req_no = context.latest_selection_single
                 plan.intent = QueryIntent.GET_REQUISITION
                 logger.info(f"ContextResolver: Resolved pronoun 'it' to requisition {context.latest_selection_single}")
 
                 # Detect specific details requested about the active requisition
-                if any(w in q_lower for w in ["who approved", "approver", "approved by"]):
+                if any(w in q_lower for w in ["who approved", "approver", "approved by", "by whom"]):
                     plan.filters["requested_detail"] = "approver"
+                elif any(w in q_lower for w in ["who created", "who submitted", "who made", "created by", "submitted by", "creator"]):
+                    plan.filters["requested_detail"] = "creator"
                 elif any(w in q_lower for w in ["what was it for", "purpose", "description"]):
                     plan.filters["requested_detail"] = "description"
                 elif any(w in q_lower for w in ["approved value", "approved amount", "how much was approved"]):
@@ -116,7 +162,7 @@ class ContextResolver:
                     plan.filters["requested_detail"] = "created_on"
                 return
 
-            if wants_details:
+            if wants_details and (has_it or has_previous_one):
                 plan.intent = QueryIntent.LIST_REQUISITIONS
                 plan.entity = QueryEntity.REQUISITION
                 plan.exact_req_no = None

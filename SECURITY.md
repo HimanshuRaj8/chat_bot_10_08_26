@@ -40,14 +40,11 @@ The Enterprise Approval System AI Assistant enforces enterprise-grade security i
 
 ## 🔍 Security Audit Verification
 
-The codebase has undergone automated secret scans and security invariant test suite verification for both Version 3 and Version 2:
+The codebase has undergone automated secret scans and security invariant test suite verification for Backend V3:
 
 ```bash
 # Backend V3 Authorization & Role Suite
 .venv/bin/python -m pytest backend_v3/tests/test_authorization.py backend_v3/tests/test_auth_and_roles.py -v
-
-# Backend V2 Authorization Suite
-.venv/bin/python -m pytest backend_v2/tests/test_authorization.py -v
 ```
 
 **Verified Authorization Invariants**: `ALL PASSED`

@@ -23,6 +23,17 @@ class EntityResolver:
         Returns a VerifiedResult (e.g., CLARIFICATION, NO_DATA) to short-circuit the execution
         if resolution fails or is ambiguous. Otherwise returns None.
         """
+        # Clean description_keyword if it resolves to any employee in the directory
+        kw = plan.filters.get("description_keyword")
+        if kw:
+            matches = self.employee_repo.resolve_by_name(kw)
+            if matches:
+                plan.filters.pop("description_keyword", None)
+                if not plan.target_employee_name and not plan.target_employee_id:
+                    plan.target_employee_name = matches[0].employee_name
+                    from models.query import SubjectScope
+                    plan.subject_scope = SubjectScope.SPECIFIC_EMPLOYEE
+
         # 1. Resolve Target Employee Name
         if plan.target_employee_name and not plan.target_employee_id:
             matches = self.employee_repo.resolve_by_name(plan.target_employee_name)
@@ -86,6 +97,21 @@ class EntityResolver:
             else:
                 plan.target_employee_name = user_check.employee_name
 
+        # Clean description keyword if it matches resolved target employee name/ID
+        kw = plan.filters.get("description_keyword")
+        if kw:
+            kw_lower = kw.lower().strip()
+            is_name_match = False
+            if plan.target_employee_name:
+                kw_words = [w for w in kw_lower.split() if len(w) > 1]
+                target_lower = plan.target_employee_name.lower()
+                if kw_words and all(w in target_lower for w in kw_words):
+                    is_name_match = True
+            if plan.target_employee_id and kw_lower == plan.target_employee_id.lower():
+                is_name_match = True
+            if is_name_match:
+                plan.filters.pop("description_keyword", None)
+
         # 3. Resolve Requisition Number existence
         if plan.intent == QueryIntent.GET_REQUISITION and plan.exact_req_no:
             req_check = self.requisition_repo.get_requisition_by_id(plan.exact_req_no)
@@ -96,6 +122,17 @@ class EntityResolver:
                     response_type=ResponseType.NO_DATA,
                     message=f"No requisition found with number '{plan.exact_req_no}'.",
                 )
+        # Check if the query asks for approved by
+        if plan.original_question:
+            q_lower = plan.original_question.lower()
+            if "approved by" in q_lower or "approved_by" in q_lower:
+                approver = plan.target_employee_name or plan.target_employee_id
+                if approver:
+                    plan.filters["status"] = f"approved_by:{approver}"
+                    plan.target_employee_name = None
+                    plan.target_employee_id = None
+                    from models.query import SubjectScope
+                    plan.subject_scope = SubjectScope.ALL_EMPLOYEES
 
         return None
 

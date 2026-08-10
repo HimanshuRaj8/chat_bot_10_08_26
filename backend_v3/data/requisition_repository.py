@@ -46,6 +46,8 @@ class RequisitionRepository:
 
     def get_requisition_by_id(self, requisition_no: str) -> Optional[RequisitionRecord]:
         """Looks up a single requisition by its unique Requisition No."""
+        if not requisition_no:
+            return None
         df = self.data_provider.get_requisitions_df()
         if df.empty or "Requisition No" not in df.columns:
             return None
@@ -328,9 +330,17 @@ class RequisitionRepository:
         # 3. Status filter
         if status:
             status_clean = status.strip().lower()
-            if "Status" in df.columns:
-                status_lower = df["Status"].astype(str).str.lower().str.strip()
-                df = df[status_lower.str.contains(status_clean, na=False)]
+            if status_clean.startswith("approved_by:"):
+                app_by_clean = status_clean.split("approved_by:", 1)[1].strip()
+                mask = pd.Series(False, index=df.index)
+                for col in ["Approved By", "Status"]:
+                    if col in df.columns:
+                        mask = mask | df[col].astype(str).str.lower().str.strip().str.contains(app_by_clean, na=False)
+                df = df[mask]
+            else:
+                if "Status" in df.columns:
+                    status_lower = df["Status"].astype(str).str.lower().str.strip()
+                    df = df[status_lower.str.contains(status_clean, na=False)]
 
         # 4. Description keyword filter
         if keyword:

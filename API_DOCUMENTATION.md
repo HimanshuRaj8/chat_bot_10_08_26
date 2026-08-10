@@ -3,8 +3,7 @@
 ---
 
 ## Base URLs
-- **Backend V3 (Primary — Production Engine)**: `http://localhost:8002`
-- **Backend V2 (Baseline / Reference Engine)**: `http://localhost:8001`
+- **Backend V3 (Production Engine)**: `http://localhost:8002`
 
 ---
 

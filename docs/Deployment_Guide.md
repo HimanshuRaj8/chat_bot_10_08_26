@@ -18,8 +18,8 @@
 
 #### 🪟 Windows (Command Prompt / PowerShell)
 ```cmd
-git clone https://github.com/HimanshuRaj8/enterprise-approval-ai-assistant.git
-cd enterprise-approval-ai-assistant
+git clone https://github.com/HimanshuRaj8/chat_bot_10_08_26.git
+cd chat_bot_10_08_26
 
 python -m venv .venv
 .venv\Scripts\activate.bat
@@ -29,8 +29,8 @@ copy .env.example .env
 
 #### 🍎 / 🐧 macOS & Linux (Terminal)
 ```bash
-git clone https://github.com/HimanshuRaj8/enterprise-approval-ai-assistant.git
-cd enterprise-approval-ai-assistant
+git clone https://github.com/HimanshuRaj8/chat_bot_10_08_26.git
+cd chat_bot_10_08_26
 
 python3 -m venv .venv
 source .venv/bin/activate

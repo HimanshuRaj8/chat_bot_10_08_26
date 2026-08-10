@@ -137,12 +137,27 @@ class ResponseGenerator:
         app_by = rec.get("approved_by", "N/A")
         val = rec.get("value_inr", 0.0)
 
+        status_lower = status.lower()
+        is_approved = "approved" in status_lower
+
         detail = result.data.get("requested_detail")
         if detail == "approver":
-            if status.lower() == "approved":
+            # Pull approver from status field if approved_by column is blank
+            if not app_by or app_by == "N/A":
+                import re as _re
+                m2 = _re.search(r'(?:approved by)[:\s]+([^(\n]+)', status, _re.IGNORECASE)
+                if m2:
+                    app_by = m2.group(1).strip().rstrip("- ")
+            if is_approved:
                 return f"Requisition **{req_no}** was approved by **{app_by}**."
             else:
-                return f"Requisition **{req_no}** is currently **{status}** and has not been approved."
+                return f"Requisition **{req_no}** is currently **{status}** and has not been approved yet."
+        elif detail == "creator":
+            emp_name = rec.get("employee_name", None)
+            emp_id = rec.get("employee_id", None)
+            if emp_name:
+                return f"Requisition **{req_no}** was submitted by **{emp_name}** ({emp_id})."
+            return f"Requisition **{req_no}** creator information is not available."
         elif detail == "description":
             return f"Requisition **{req_no}** is for: *\"{desc}\"*."
         elif detail == "approved_value":

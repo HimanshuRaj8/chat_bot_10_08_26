@@ -50,12 +50,11 @@ The **Enterprise Approval System AI Assistant** is a role-aware, production-grad
 | **Context Memory** | Resolves pronouns (`it`, `its`) and follow-up pagination (`next page`, `previous one`). |
 | **Markdown Tables** | Renders formatted HTML/Markdown tables for multi-record lists and monthly aggregations. |
 | **Dynamic Port Binding** | Web client binds automatically via `window.location.origin` (Port 8002 for V3). |
-| **Automated Testing** | 29 passing unit & integration tests for Version 3, 151 passing tests for Version 2 baseline. |
+| **Automated Testing** | 39 passing unit & integration tests for Version 3. |
 
 ---
 
 ## 🚀 Release Information
 
-- **Primary Production Engine**: Backend V3 (`backend_v3/app.py` on Port 8002)
-- **Legacy Reference Engine**: Backend V2 (`backend_v2/app.py` on Port 8001)
+- **Production Engine**: Backend V3 (`backend_v3/app.py` on Port 8002)
 - **License**: MIT License

@@ -64,8 +64,9 @@ class QueryParser:
             logger.info("Deterministic OUT_OF_SCOPE detected.")
             return QueryPlan(intent=QueryIntent.OUT_OF_SCOPE, original_question=q_clean)
 
-        # Early PROFILE intent check
-        profile_metric = self._detect_profile_intent(q_lower)
+        # Early PROFILE intent check — skip if query is very short and lacks profile-specific terms
+        _profile_skip = len(q_lower.split()) <= 4 and not any(w in q_lower for w in ["my profile", "my id", "my role", "my email", "my department", "my location", "who am i"])
+        profile_metric = None if _profile_skip else self._detect_profile_intent(q_lower)
         if profile_metric:
             logger.info(f"Deterministic PROFILE detected: {profile_metric}")
             return QueryPlan(
@@ -89,6 +90,7 @@ class QueryParser:
                     self._apply_scope_from_question(plan, q_lower, user)
                     self._normalize_detail_plan(plan, q_lower)
                     self._normalize_ranking_plan(plan, q_lower)
+                    self._correct_intent_by_rules(plan, q_lower)
                     return plan
             except Exception as e:
                 logger.warning(f"LLM query parser failed, falling back to deterministic: {e}")
@@ -99,6 +101,7 @@ class QueryParser:
         self._apply_scope_from_question(plan, q_lower, user)
         self._normalize_detail_plan(plan, q_lower)
         self._normalize_ranking_plan(plan, q_lower)
+        self._correct_intent_by_rules(plan, q_lower)
         return plan
 
     # ── LLM Parser ────────────────────────────────────────────────────────────
@@ -131,6 +134,7 @@ CRITICAL RULES — read carefully:
 6. "show me April requisitions" -> intent="LIST_REQUISITIONS", group_by=null.
 7. Exact requisition lookup -> intent="GET_REQUISITION", exact_req_no="G_XXX...".
 8. Never set "subject_scope" — authorization is handled separately.
+9. Plural or general list queries like "Show Ajay Tomar's requisitions" or "Find requisitions related to travel" must be parsed as intent="LIST_REQUISITIONS". intent="GET_REQUISITION" is strictly reserved for single record lookups where an exact code like "G_XXX" or "REQ-XXX" is provided.
 """
         try:
             resp_text = self.llm.generate(question, system=system_instruction, format_json=True)
@@ -525,3 +529,47 @@ CRITICAL RULES — read carefully:
             return None, m.group(1)
 
         return None, None
+
+    def _correct_intent_by_rules(self, plan: QueryPlan, q_lower: str) -> None:
+        """Determines if the parsed intent matches exact codes, overriding if needed."""
+        # Detect exact requisition number if not already set
+        if not plan.exact_req_no:
+            plan.exact_req_no = self._detect_exact_req_no(plan.original_question)
+
+        # Force GET_REQUISITION only if exact requisition number is present
+        if plan.exact_req_no:
+            plan.intent = QueryIntent.GET_REQUISITION
+            return
+
+        # If intent is GET_REQUISITION but no exact number is present, resolve to LIST or LATEST
+        if plan.intent == QueryIntent.GET_REQUISITION:
+            if self._is_recency_query(q_lower):
+                if "previous" in q_lower or "last one" in q_lower or "before" in q_lower:
+                    plan.intent = QueryIntent.GET_PREVIOUS_REQUISITION
+                else:
+                    plan.intent = QueryIntent.GET_LATEST_REQUISITION
+            else:
+                plan.intent = QueryIntent.LIST_REQUISITIONS
+
+        # Ensure LIST_REQUISITIONS is used when asking for lists/plurals/keywords and not doing an aggregate
+        list_keywords = ["requisitions", "claims", "requests", "records", "list", "show my", "show all"]
+        has_list_keyword = any(w in q_lower for w in list_keywords) or "related to" in q_lower or "for" in q_lower
+        
+        has_analytics_signal = self._has_word_signal(
+            q_lower, 
+            ["total", "sum", "overall", "average", "avg", "mean", "count", "how many", "highest", "lowest", "max", "min", "limit", "top", "breakdown", "summary"]
+        )
+
+        # Force group_by based on keywords
+        if "department-wise" in q_lower or "department wise" in q_lower:
+            plan.group_by = "department"
+        elif "employee-wise" in q_lower or "employee wise" in q_lower:
+            plan.group_by = "employee_name"
+        elif "monthly" in q_lower or "month-wise" in q_lower or "month wise" in q_lower:
+            plan.group_by = "month_period"
+        elif "quarterly" in q_lower or "quarter-wise" in q_lower or "quarter wise" in q_lower:
+            plan.group_by = "quarter_period"
+
+        if has_list_keyword and not has_analytics_signal and not plan.exact_req_no:
+            if plan.intent not in (QueryIntent.GET_LATEST_REQUISITION, QueryIntent.GET_PREVIOUS_REQUISITION):
+                plan.intent = QueryIntent.LIST_REQUISITIONS

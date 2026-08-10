@@ -3,7 +3,7 @@
 ---
 
 ### Q1: Why does the AI Assistant not use Vector RAG for requisition analytics?
-**Answer**: Tabular numerical data requires 100% exact math, grouping, and filtering. Vector search (embedding distance) is probabilistic and prone to hallucination. Backend V2 uses a deterministic pandas engine for tabular data, guaranteeing exact mathematical accuracy.
+**Answer**: Tabular numerical data requires 100% exact math, grouping, and filtering. Vector search (embedding distance) is probabilistic and prone to hallucination. The system uses a deterministic pandas engine for tabular data, guaranteeing exact mathematical accuracy.
 
 ---
 
@@ -18,4 +18,4 @@
 ---
 
 ### Q4: How do I connect the AI Assistant to live EASY REST APIs?
-**Answer**: Switch `DATA_PROVIDER_TYPE=easy_api` in `.env` or set it via the Admin portal (`/admin/config`). Implement the API endpoint URL in `backend_v2/data/easy_api_provider.py`. The rest of the AI chatbot pipeline remains unchanged.
+**Answer**: Switch `DATA_PROVIDER_TYPE=easy_api` in `.env` or set it via the Admin portal (`/admin/config`). Implement the API endpoint URL in `backend_v3/data/easy_api_provider.py`. The rest of the AI chatbot pipeline remains unchanged.

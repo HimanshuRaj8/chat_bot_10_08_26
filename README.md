@@ -1,10 +1,9 @@
 # Enterprise Approval System AI Assistant (Version 3.0)
 
-[![Backend V3 Test Suite](https://img.shields.io/badge/V3%20Tests-29%2F29%20Passing-brightgreen)](backend_v3/tests/)
-[![Backend V2 Baseline](https://img.shields.io/badge/V2%20Tests-151%2F151%20Passing-blue)](backend_v2/tests/)
+[![Backend V3 Test Suite](https://img.shields.io/badge/V3%20Tests-39%2F39%20Passing-brightgreen)](backend_v3/tests/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](https://www.python.org/)
 [![Flask](https://img.shields.io/badge/Flask-3.0%2B-black)](https://flask.palletsprojects.com/)
-[![Cross-Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-orange)](https://github.com/HimanshuRaj8/enterprise-approval-ai-assistant)
+[![Cross-Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-orange)](https://github.com/HimanshuRaj8/chat_bot_10_08_26)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
 An enterprise-grade, role-aware AI Assistant for natural language querying of approval requisitions, employee directory data, and financial analytics. Built with a clean, modular **Deterministic Analytical Pipeline (Version 3)** and powered by local **Qwen2.5 LLM integration via Ollama**.
@@ -17,7 +16,7 @@ An enterprise-grade, role-aware AI Assistant for natural language querying of ap
 - 💬 **Relative Pronoun & Multi-Turn Context**: Resolves follow-up queries naturally (e.g. `"Who approved it?"`, `"What is its requested value?"`, `"Previous one"`).
 - 📊 **Markdown Table Rendering**: Automatic tabular response generation for multi-record lists and monthly/quarterly aggregations.
 - 🛡️ **Strict Deterministic Security**: Zero LLM authorization leaks — security scopes are enforced by a dedicated gateway before repository execution.
-- 🌐 **Dynamic Frontend Origin Binding**: Automatically binds UI requests to whichever port served the application (`http://localhost:8002` for V3, `http://localhost:8001` for V2).
+- 🌐 **Dynamic Frontend Origin Binding**: Automatically binds UI requests to the port serving the application (`http://localhost:8002`).
 - 🖥️ **Full Cross-Platform Compatibility**: Native support for **Windows**, **macOS**, and **Linux** runtimes.
 
 ---
@@ -96,8 +95,8 @@ User Natural Language Question
 #### 🪟 On Windows (Command Prompt / PowerShell)
 ```cmd
 # Clone repository
-git clone https://github.com/HimanshuRaj8/enterprise-approval-ai-assistant.git
-cd enterprise-approval-ai-assistant
+git clone https://github.com/HimanshuRaj8/chat_bot_10_08_26.git
+cd chat_bot_10_08_26
 
 # Create virtual environment
 python -m venv .venv
@@ -118,8 +117,8 @@ copy .env.example .env
 #### 🍎 / 🐧 On macOS & Linux (Terminal)
 ```bash
 # Clone repository
-git clone https://github.com/HimanshuRaj8/enterprise-approval-ai-assistant.git
-cd enterprise-approval-ai-assistant
+git clone https://github.com/HimanshuRaj8/chat_bot_10_08_26.git
+cd chat_bot_10_08_26
 
 # Create virtual environment
 python3 -m venv .venv
@@ -138,7 +137,6 @@ cp .env.example .env
 
 ### 3. Running the Server
 
-#### Option A: Run Version 3 (Recommended — Port 8002)
 ```bash
 # Windows:
 python backend_v3/app.py
@@ -146,41 +144,23 @@ python backend_v3/app.py
 # macOS / Linux:
 .venv/bin/python backend_v3/app.py
 ```
-Open **`http://localhost:8002`** in your browser to access the V3 web assistant interface.
-
-#### Option B: Run Version 2 (Legacy Baseline — Port 8001)
-```bash
-# Windows:
-python app.py
-
-# macOS / Linux:
-.venv/bin/python app.py
-```
-Open **`http://localhost:8001`** in your browser.
+Open **`http://localhost:8002`** in your browser to access the web assistant interface.
 
 ---
 
-## 🧪 Running Automated Test Suites
-
-Both Version 3 and Version 2 include comprehensive automated unit and integration tests.
+## 🧪 Running Automated Tests
 
 ### Windows (PowerShell / CMD)
 ```cmd
-# Run Backend V3 Test Suite (29 Tests)
 python -m pytest backend_v3/tests/ -v --tb=short
-
-# Run Backend V2 Test Suite (151 Tests)
-python -m pytest backend_v2/tests/ -v --tb=short
 ```
 
 ### macOS / Linux (Terminal)
 ```bash
-# Run Backend V3 Test Suite (29 Tests)
 .venv/bin/python -m pytest backend_v3/tests/ -v --tb=short
-
-# Run Backend V2 Test Suite (151 Tests)
-.venv/bin/python -m pytest backend_v2/tests/ -v --tb=short
 ```
+
+Expected: **39 tests passing.**
 
 ---
 
@@ -206,7 +186,7 @@ python -m pytest backend_v2/tests/ -v --tb=short
 ```
 .
 ├── backend_v3/                 # Version 3 Production Engine (Port 8002)
-│   ├── app.py                  # V3 Flask server & API routes
+│   ├── app.py                  # Flask server & API routes
 │   ├── config.py               # Central settings & defaults
 │   ├── auth/                   # Authentication & Session Store
 │   ├── context/                # Multi-turn Context & Relative Pronoun Resolver
@@ -216,13 +196,9 @@ python -m pytest backend_v2/tests/ -v --tb=short
 │   ├── query/                  # Query Parser, Validator, Entity Resolver, Executor
 │   ├── services/               # ChatService Pipeline Orchestrator
 │   ├── utils/                  # Chat History JSON Persistence
-│   └── tests/                  # V3 Automated Test Suite (29 Tests)
+│   └── tests/                  # Automated Test Suite (39 Tests)
 │
-├── backend_v2/                 # Version 2 Legacy Baseline Engine (Port 8001)
-│   ├── app.py                  # V2 Flask application entrypoint
-│   └── tests/                  # V2 Regression Suite (151 Tests)
-│
-├── frontend/                   # Shared Modern Web Client
+├── frontend/                   # Modern Web Client
 │   ├── index.html              # Main Chat Assistant interface
 │   ├── app.js                  # Frontend dynamic origin logic & table renderer
 │   ├── style.css               # Styling system & dark theme tokens
@@ -236,6 +212,7 @@ python -m pytest backend_v2/tests/ -v --tb=short
 │   └── Finance.xlsx            # Sample finance role overlay dataset
 │
 ├── docs/                       # Guides & Documentation
+├── scripts/                    # Utility scripts (health check)
 ├── requirements.txt            # Python dependencies manifest
 ├── pyrightconfig.json          # IDE type checker configuration
 ├── README.md                   # Primary project documentation
@@ -251,7 +228,7 @@ python -m pytest backend_v2/tests/ -v --tb=short
 
 - **Deterministic Execution**: Financial calculations and data slicing are computed exclusively via pandas data engines — LLMs are restricted to text narration and natural language parsing.
 - **Pre-Retrieval Authorization**: Authorization boundaries are enforced on every request before repository access occurs.
-- **Cross-Platform Path Safety**: All file paths use `os.path.join` and standard relative path handling to ensure 100% smooth operation across Windows, macOS, and Linux.
+- **Cross-Platform Path Safety**: All file paths use `os.path.join` and standard relative path handling to ensure smooth operation across Windows, macOS, and Linux.
 
 ---
 

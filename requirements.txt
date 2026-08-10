@@ -16,8 +16,3 @@ PyJWT>=2.8.0
 
 # Testing
 pytest>=8.0.0
-
-# Optional Future Document Search (Policy Vector RAG)
-# chromadb>=0.4.22
-# sentence-transformers>=2.2.2
-# torch>=2.0.0

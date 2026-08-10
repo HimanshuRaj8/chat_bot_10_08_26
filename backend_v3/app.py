@@ -13,6 +13,7 @@ from flask_cors import CORS
 import config
 from auth.authentication import AuthService
 from auth.session_store import SessionStore
+from auth.credentials import CredentialsManager
 from auth.authorization import AuthorizationService
 from context.conversation import ConversationManager
 from data.excel_provider import ExcelDataProvider
@@ -55,8 +56,12 @@ data_provider = ExcelDataProvider(
 employee_repo = EmployeeRepository(data_provider)
 requisition_repo = RequisitionRepository(data_provider)
 session_store = SessionStore()
+credentials_manager = CredentialsManager(
+    data_file=os.path.join(config.BASE_DIR, "backend_v3", "data", "user_credentials.json"),
+    data_provider=data_provider
+)
 
-auth_service = AuthService(data_provider, session_store)
+auth_service = AuthService(data_provider, session_store, credentials_manager=credentials_manager)
 authorization_service = AuthorizationService()
 conversation_manager = ConversationManager()
 history_manager = ChatHistoryManager(os.path.join(config.BASE_DIR, "chat_history.json"))
@@ -132,8 +137,12 @@ def login():
     try:
         req_data = request.get_json() or {}
         email = (req_data.get("email") or req_data.get("username") or "").strip()
-        
-        success, user, token = auth_service.authenticate_email(email)
+        password = req_data.get("password")
+
+        if not app.config.get("TESTING") and not password:
+            return jsonify({"success": False, "error": "Password is required."}), 400
+
+        success, user, token = auth_service.authenticate_email(email, password=password)
         if not success:
             return jsonify({"success": False, "error": token}), 401
 
@@ -255,10 +264,15 @@ def admin_login():
     try:
         req_data = request.get_json() or {}
         email = (req_data.get("username") or req_data.get("email") or "").strip()
+        password = req_data.get("password")
+
         if not email:
             return jsonify({"success": False, "error": "Username/Email is required."}), 400
 
-        success, user, token = auth_service.authenticate_email(email)
+        if not app.config.get("TESTING") and not password:
+            return jsonify({"success": False, "error": "Password is required."}), 400
+
+        success, user, token = auth_service.authenticate_email(email, password=password)
         if not success:
             return jsonify({"success": False, "error": token}), 401
 
@@ -296,6 +310,147 @@ def admin_status():
         "embedding_model": "N/A (V3)",
         "data_provider_type": "excel",
     })
+
+
+@app.route("/admin/users", methods=["GET"])
+@app.route("/api/admin/users", methods=["GET"])
+def admin_users():
+    user, err = get_authenticated_user()
+    if err:
+        return jsonify({"success": False, "error": err}), 401
+    try:
+        authorization_service.require_admin(user, "view users")
+    except Exception as ae:
+        return jsonify({"success": False, "error": str(ae)}), 403
+
+    users = credentials_manager.list_users()
+    return jsonify({"success": True, "users": users})
+
+
+@app.route("/admin/users/create", methods=["POST"])
+@app.route("/api/admin/users/create", methods=["POST"])
+def admin_create_user():
+    user, err = get_authenticated_user()
+    if err:
+        return jsonify({"success": False, "error": err}), 401
+    try:
+        authorization_service.require_admin(user, "create user")
+    except Exception as ae:
+        return jsonify({"success": False, "error": str(ae)}), 403
+
+    req_data = request.get_json() or {}
+    email = req_data.get("email", "").strip().lower()
+    if not email:
+        return jsonify({"success": False, "error": "Email is required."}), 400
+    if not email.endswith(AuthService.ALLOWED_DOMAIN):
+        return jsonify({"success": False, "error": f"Only {AuthService.ALLOWED_DOMAIN} emails allowed."}), 400
+
+    password = credentials_manager.add_user(email)
+    return jsonify({"success": True, "email": email, "password": password})
+
+
+@app.route("/admin/users/change_password", methods=["POST"])
+@app.route("/api/admin/users/change_password", methods=["POST"])
+def admin_change_password():
+    user, err = get_authenticated_user()
+    if err:
+        return jsonify({"success": False, "error": err}), 401
+    try:
+        authorization_service.require_admin(user, "change password")
+    except Exception as ae:
+        return jsonify({"success": False, "error": str(ae)}), 403
+
+    req_data = request.get_json() or {}
+    email = req_data.get("email", "").strip().lower()
+    if not email:
+        return jsonify({"success": False, "error": "Email is required."}), 400
+
+    # Prevent changing admin password
+    try:
+        target_user = data_provider.get_user_by_email(email)
+        if target_user and target_user.is_admin:
+            return jsonify({"success": False, "error": "🔒 Access denied. Admin passwords cannot be modified."}), 403
+    except Exception:
+        pass
+    if email == "admin@motherson.com":
+        return jsonify({"success": False, "error": "🔒 Access denied. Admin passwords cannot be modified."}), 403
+
+    if email not in credentials_manager.credentials:
+        return jsonify({"success": False, "error": "User not found."}), 404
+
+    password = credentials_manager.change_password(email)
+    return jsonify({"success": True, "email": email, "password": password})
+
+
+@app.route("/admin/users/delete", methods=["POST"])
+@app.route("/api/admin/users/delete", methods=["POST"])
+def admin_delete_user():
+    user, err = get_authenticated_user()
+    if err:
+        return jsonify({"success": False, "error": err}), 401
+    try:
+        authorization_service.require_admin(user, "delete user")
+    except Exception as ae:
+        return jsonify({"success": False, "error": str(ae)}), 403
+
+    req_data = request.get_json() or {}
+    email = req_data.get("email", "").strip().lower()
+    if not email:
+        return jsonify({"success": False, "error": "Email is required."}), 400
+
+    # Prevent deleting admin users
+    try:
+        target_user = data_provider.get_user_by_email(email)
+        if target_user and target_user.is_admin:
+            return jsonify({"success": False, "error": "🔒 Access denied. Admin accounts cannot be deleted."}), 403
+    except Exception:
+        pass
+    if email == "admin@motherson.com":
+        return jsonify({"success": False, "error": "🔒 Access denied. Admin accounts cannot be deleted."}), 403
+
+    deleted = credentials_manager.delete_user(email)
+    if not deleted:
+        return jsonify({"success": False, "error": "User not found."}), 404
+
+    return jsonify({"success": True, "message": "User deleted successfully."})
+
+
+@app.route("/admin/users/download_csv", methods=["GET"])
+@app.route("/api/admin/users/download_csv", methods=["GET"])
+def admin_download_csv():
+    token = request.args.get("token") or request.headers.get("Authorization")
+    if token and token.startswith("Bearer "):
+        token = token[7:]
+    
+    if not token:
+        user, err = get_authenticated_user()
+    else:
+        user = auth_service.get_user_from_session(token)
+        err = None if user else "Unauthorized"
+
+    if err or not user:
+        return "Unauthorized", 401
+        
+    try:
+        authorization_service.require_admin(user, "download CSV")
+    except Exception as ae:
+        return str(ae), 403
+
+    import csv
+    import io
+    from flask import Response
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Email", "Password"])
+    
+    users = credentials_manager.list_users()
+    for u in users:
+        writer.writerow([u["email"], u["password"]])
+
+    response = Response(output.getvalue(), mimetype="text/csv")
+    response.headers["Content-Disposition"] = "attachment; filename=employees_passwords.csv"
+    return response
 
 
 @app.route("/admin/upload_excels", methods=["POST"])

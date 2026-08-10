@@ -12,13 +12,14 @@ logger = logging.getLogger(__name__)
 class AuthService:
     ALLOWED_DOMAIN = "@motherson.com"
 
-    def __init__(self, data_provider, session_store: SessionStore):
+    def __init__(self, data_provider, session_store: SessionStore, credentials_manager=None):
         self.data_provider = data_provider
         self.session_store = session_store
+        self.credentials_manager = credentials_manager
 
-    def authenticate_email(self, email: str) -> Tuple[bool, Optional[CurrentUser], str]:
+    def authenticate_email(self, email: str, password: Optional[str] = None) -> Tuple[bool, Optional[CurrentUser], str]:
         """
-        Authenticates a user by corporate email.
+        Authenticates a user by corporate email and optionally password.
         Returns (success, CurrentUser, session_token).
         """
         email_clean = email.strip().lower()
@@ -27,6 +28,11 @@ class AuthService:
 
         if not email_clean.endswith(self.ALLOWED_DOMAIN):
             return False, None, f"Only {self.ALLOWED_DOMAIN} corporate accounts are authorized."
+
+        # Verify password if credentials_manager and password are provided
+        if self.credentials_manager and password is not None:
+            if not self.credentials_manager.verify_password(email_clean, password):
+                return False, None, "Invalid email or password."
 
         try:
             user = self.data_provider.get_user_by_email(email_clean)
