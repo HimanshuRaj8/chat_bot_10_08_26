@@ -1,0 +1,10 @@
+{
+  "pythonPath": "./.venv/bin/python",
+  "venvPath": ".",
+  "venv": ".venv",
+  "extraPaths": [
+    "backend",
+    "backend_v3",
+    "."
+  ]
+}

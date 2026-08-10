@@ -1,0 +1,313 @@
+name: Deploy Chatbot
+
+on:
+  pull_request:
+    branches: [dev, main]
+    types: [opened, synchronize, reopened]
+    paths-ignore:
+      - '.github/workflows/**'
+      - 'README.md'
+  push:
+    branches: [dev, main]
+    paths-ignore:
+      - '.github/workflows/**'
+      - 'README.md'  
+
+jobs:
+# ----------------------------------------------------------------
+# PR TITLE VALIDATION
+# ----------------------------------------------------------------
+  validate-pr-title:
+    name: validate-pr-title
+    if: github.event_name == 'pull_request'
+    runs-on: [self-hosted, linux, x64]
+  
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+  
+      - name: Validate PR title matches branch ticket
+        shell: bash
+        run: |
+          BRANCH="${{ github.event.pull_request.head.ref }}"
+          TITLE="${{ github.event.pull_request.title }}"
+          BASE="${{ github.event.pull_request.base.ref }}"
+      
+          echo "Branch : $BRANCH"
+          echo "Title  : $TITLE"
+          echo "Base   : $BASE"
+      
+          # -------------------- SKIP PROMOTION PRs --------------------
+          if [[ ( "$BRANCH" == "dev" && "$BASE" == "qa" ) || \
+                ( "$BRANCH" == "qa" && "$BASE" == "release" ) || \
+                ( "$BRANCH" == "release" && "$BASE" == "main" ) ]]; then
+            echo "Promotion PR → skipping title validation"
+            exit 0
+          fi
+      
+          # -------------------- EXTRACT JIRA TICKET FROM BRANCH --------------------
+          if [[ "$BRANCH" =~ ([A-Za-z]+-[0-9]+)$ ]]; then
+            TICKET="${BASH_REMATCH[1]}"
+            echo "Extracted ticket: $TICKET"
+          else
+            echo " Branch must end with <JIRA>-<number>"
+            exit 1
+          fi
+      
+          # -------------------- VALIDATE PR TITLE --------------------
+          if [[ "$TITLE" != "$TICKET" && "$TITLE" != "$TICKET "* ]]; then
+            echo " PR title must be either:"
+            echo "   $TICKET"
+            echo "   $TICKET <description>"
+            exit 1
+          fi
+      
+          echo " PR title validation passed"
+      
+
+# ----------------------------------------------------------------
+# GITIGNORE ENFORCEMENT
+# ----------------------------------------------------------------
+  gitignore_check:
+    name: gitignore_check
+    runs-on: [self-hosted, linux, x64]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # -------------------- CHECK .gitignore EXISTS --------------------
+      - name: Ensure .gitignore exists
+        shell: bash
+        run: |
+          if [[ ! -f ".gitignore" ]]; then
+            echo ".gitignore file not found at repository root."
+            echo "This repository must contain a .gitignore file."
+            exit 1
+          fi
+          echo " .gitignore file found"
+
+      # -------------------- BLOCK IGNORED FILES --------------------
+      - name: Block ignored files
+        shell: bash
+        run: |
+          BLOCKED_EXT="reports macos output.xml swp  venv __pycache__ node_modules .idea .vscode log pid tmp tfstate pyo pyd egg-info .eggs package-lock.json "exe","dll","spec",,".macos","bak","log" "
+
+
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            git fetch origin ${{ github.base_ref }}
+            FILES=$(git diff --name-only origin/${{ github.base_ref }})
+          else
+            FILES=$(git ls-files)
+          fi
+
+          FAIL=0
+
+          for f in $FILES; do
+            # Skip common build folders
+            [[ "$f" =~ ^(dist|build)/ ]] && continue
+
+            #  File should not be committed if ignored
+            if git check-ignore -q "$f"; then
+              echo " Ignored file committed: $f"
+              FAIL=1
+            fi
+
+            #  Block dangerous extensions
+            EXT="${f##*.}"
+            for b in $BLOCKED_EXT; do
+              if [[ "$EXT" == "$b" ]]; then
+                echo " Blocked extension .$EXT → $f"
+                FAIL=1
+              fi
+            done
+          done
+
+          if [[ $FAIL -eq 1 ]]; then
+            echo " Git hygiene check failed"
+            exit 1
+          fi
+
+          echo " No blocked or ignored files found"
+
+
+
+# ----------------------------------------------------------------
+# GITLEAKS SCAN (SOURCE ONLY, NO GIT HISTORY)
+# ----------------------------------------------------------------
+  gitleaks_scan:
+    name: gitleaks_scan
+    needs: gitignore_check
+    runs-on: [self-hosted, linux, x64]
+
+    steps:
+      # -------------------- CHECKOUT --------------------
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # -------------------- GITLEAKS SCAN --------------------
+      - name: Gitleaks secret scan (current source only)
+        shell: bash
+        run: |
+          echo "Running Gitleaks on current source code only..."
+
+          REPORT="/tmp/gitleaks_report.json"
+
+          gitleaks detect \
+            --source . \
+            --no-git \
+            --config .gitleaks.toml \
+            --report-format json \
+            --report-path "$REPORT" \
+            --redact=100 \
+            --verbose || true
+
+          if [[ -s "$REPORT" ]] && [[ "$(jq length "$REPORT")" -gt 0 ]]; then
+            echo ""
+            echo " Gitleaks Secrets Detected:"
+            echo "----------------------------------"
+            jq '.[] | {file, ruleID, line}' "$REPORT"
+            echo "----------------------------------"
+            exit 1
+          fi
+
+          echo " No secrets detected by Gitleaks"
+
+  hr-chatbot:
+    runs-on: [self-hosted, linux, x64]
+
+    steps:
+      # ---------------- Checkout ----------------
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # ---------------- Sync Files ----------------
+      - name: Copy Latest Files
+        run: |
+          sudo pkill -f chatbot1.py || true
+
+          sudo rm -rf /home/ubuntu/chatbot/chromadb_store
+          sudo mkdir -p /home/ubuntu/chatbot/chromadb_store
+
+          sudo chown -R ubuntu:ubuntu /home/ubuntu/chatbot
+
+          rsync -av --delete ./ /home/ubuntu/chatbot/
+
+          sudo chown -R ubuntu:ubuntu /home/ubuntu/chatbot
+      # ---------------- Python Setup ----------------
+      - name: Install Python Packages
+        run: |
+          cd /home/ubuntu/chatbot
+          python3 -m venv venv
+          source venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirement.txt
+
+      # ---------------- Ollama Setup ----------------
+      - name: Setup Ollama
+        run: |
+          # Install Ollama if not installed
+          if ! command -v ollama &> /dev/null; then
+            curl -fsSL https://ollama.com/install.sh | sh
+          fi
+
+          # Restart Ollama cleanly
+          pkill -f ollama || true
+          nohup ollama serve > ollama.log 2>&1 &
+
+          # Wait for server to start
+          sleep 5
+
+          # Pull model (safe if already exists)
+          ollama pull llama3.2:3b
+
+      # ---------------- Backend Restart ----------------
+      - name: Restart Backend
+        run: |
+          echo "Stopping existing chatbot process..."
+
+          PID=$(pgrep -f "/home/ubuntu/chatbot/chatbot1.py" || true)
+
+          if [ -n "$PID" ]; then
+            echo "Killing chatbot PID: $PID"
+            sudo kill $PID || true
+            sleep 5
+          else
+            echo "No existing chatbot process found"
+          fi
+
+          echo "Preparing ChromaDB..."
+
+          sudo rm -rf /home/ubuntu/chatbot/chromadb_store
+          sudo mkdir -p /home/ubuntu/chatbot/chromadb_store
+          sudo chown -R ubuntu:ubuntu /home/ubuntu/chatbot
+
+          cd /home/ubuntu/chatbot
+
+          echo "Starting backend..."
+
+          sudo -u ubuntu bash -c '
+            cd /home/ubuntu/chatbot
+            nohup venv/bin/python chatbot1.py > chatbot.log 2>&1 &
+          '
+
+          echo "Waiting for backend startup..."
+          sleep 30
+
+          echo "Checking process..."
+          ps -ef | grep chatbot1.py || true
+
+          echo "Checking port..."
+          ss -lntp | grep 9000 || true
+
+          echo "Backend logs:"
+          tail -100 /home/ubuntu/chatbot/chatbot.log || true
+
+      # ---------------- Frontend Restart ----------------
+      - name: Restart Frontend
+        run: |
+          echo "Stopping frontend..."
+
+          PID=$(pgrep -f "python3 -m http.server 3000" || true)
+
+          if [ -n "$PID" ]; then
+            echo "Killing frontend PID: $PID"
+            sudo kill $PID || true
+            sleep 3
+          else
+            echo "No frontend process found"
+          fi
+
+          cd /home/ubuntu/chatbot
+
+          echo "Starting frontend..."
+
+          sudo -u ubuntu bash -c '
+            cd /home/ubuntu/chatbot
+            nohup python3 -m http.server 3000 > frontend.log 2>&1 &
+          '
+
+          sleep 5
+
+          echo "Checking frontend..."
+          ps -ef | grep http.server || true
+
+          ss -lntp | grep 3000 || true
+
+      # ---------------- Health Check ----------------
+      - name: Check Processes
+        run: |
+          echo "---- Flask ----"
+          ps -ef | grep chatbot1.py || true
+
+          echo "---- Frontend ----"
+          ps -ef | grep http.server || true
+
+          echo "---- Ports ----"
+          ss -lntp | grep -E '3000|9000|11434' || true

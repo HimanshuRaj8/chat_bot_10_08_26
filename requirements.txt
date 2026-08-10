@@ -1,0 +1,23 @@
+# Enterprise Approval System AI Assistant — Dependencies
+
+# Core Web & API Framework
+flask>=3.0.0
+flask-cors>=4.0.0
+
+# Data Engine & Excel Provider
+pandas>=2.0.0
+openpyxl>=3.1.0
+numpy>=1.24.0
+python-dateutil>=2.8.2
+
+# Networking & Entra ID Security
+requests>=2.31.0
+PyJWT>=2.8.0
+
+# Testing
+pytest>=8.0.0
+
+# Optional Future Document Search (Policy Vector RAG)
+# chromadb>=0.4.22
+# sentence-transformers>=2.2.2
+# torch>=2.0.0

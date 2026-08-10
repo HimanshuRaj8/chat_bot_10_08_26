@@ -1,0 +1,171 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+}
+
+body {
+  background-color: #f1f5f9;
+  color: #1e293b;
+}
+
+#login-screen {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+}
+
+.box {
+  background: white;
+  padding: 24px;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+  margin-bottom: 20px;
+}
+
+.box.wide {
+  width: 100%;
+}
+
+.login-screen .box {
+  width: 380px;
+  text-align: center;
+}
+
+input[type="text"], input[type="password"], select {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  margin-top: 6px;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+button {
+  background-color: #c0392b;
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #a93226;
+}
+
+.topbar {
+  background-color: #1e293b;
+  color: white;
+  padding: 16px 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logout-btn {
+  background-color: #475569;
+  font-size: 12px;
+}
+
+.content {
+  padding: 30px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* STATUS GRID */
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-top: 15px;
+}
+
+.stat-card {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 16px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.stat-num {
+  display: block;
+  font-size: 22px;
+  font-weight: 800;
+  color: #c0392b;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #64748b;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+/* UPLOAD GRID */
+.box-sub {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 16px;
+}
+
+.upload-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.upload-card {
+  background-color: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.upload-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e293b;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.upload-hint {
+  font-size: 11px;
+  color: #64748b;
+  display: block;
+  margin-top: 6px;
+}
+
+.reindex-btn {
+  background-color: #c0392b;
+  padding: 12px 24px;
+  font-size: 15px;
+}
+
+.status-msg {
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 12px;
+}
+
+/* FORM GRID */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.form-group label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+}

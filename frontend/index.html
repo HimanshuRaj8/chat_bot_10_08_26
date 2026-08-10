@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Motherson - Approval System AI Assistant</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- Marked Library for rendering Markdown tables in Chat -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+
+<body>
+
+  <!-- LOGIN SCREEN -->
+  <div id="login-screen">
+    <div class="login-box">
+      <img src="logo.png" class="login-logo" alt="Motherson Logo" />
+      <h2>Approval System AI Assistant</h2>
+      <p class="login-sub">Secure Enterprise Authentication</p>
+
+      <input id="username" type="email" placeholder="Official Email (@motherson.com)" value="" />
+      <button class="login-btn" onclick="login()">Sign In</button>
+      
+      <p id="login-error"></p>
+
+      <div style="margin-top:15px; text-align:center;">
+        <a href="admin.html" style="font-size:12px; color:#c0392b; text-decoration:none; font-weight:600;">⚙️ Open Admin Control Panel</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHAT SCREEN (hidden until login) -->
+  <div id="chat-screen" style="display:none;">
+
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <img src="logo.png" class="logo" alt="Logo" />
+        <span class="app-title">Approval AI</span>
+      </div>
+
+      <button class="new-chat-btn" onclick="newChat()">+ New Chat</button>
+      
+      <p class="section-label">CHAT HISTORY</p>
+      <div id="doc-list"></div>
+
+      <!-- USER PROFILE & ROLE BADGE -->
+      <div class="user-profile-card">
+        <div class="user-info">
+          <div class="user-name-row">
+            <span id="user-display-name">Loading...</span>
+            <span id="user-role-badge" class="role-badge">Employee</span>
+          </div>
+          <div class="user-meta">
+            <span id="user-emp-id">ID: ---</span> • <span id="user-dept">Dept: ---</span>
+          </div>
+        </div>
+        <div class="user-actions">
+          <a id="admin-link" href="admin.html" class="admin-icon-btn" style="display:none;" title="Admin Dashboard">⚙️</a>
+          <button class="logout-btn" onclick="logout()" title="Logout">Logout</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="header">
+        <div class="header-info">
+          <span class="header-title">Enterprise Approval System Assistant</span>
+          <span id="security-indicator" class="security-badge">🔒 Pre-Retrieval Authorization Enforced</span>
+        </div>
+        <span class="status"><span class="dot"></span> Online</span>
+      </div>
+
+      <div class="messages" id="messages">
+        <div class="welcome" id="welcome">
+          <div class="welcome-card">
+            <div class="welcome-header">
+              <div class="logo-badge-wrapper">
+                <img src="logo.png" class="welcome-logo" alt="Motherson Logo" />
+              </div>
+              <h2>Approval System AI Assistant</h2>
+              <div class="welcome-subtitle-box">
+                <p id="welcome-subtitle">Ask questions about your requisitions, approval statuses, and reimbursements.</p>
+              </div>
+            </div>
+            
+            <div class="sample-queries">
+              <p class="sample-title">⚡ Suggested Intelligent Queries</p>
+              <div class="query-grid" id="query-pills">
+                <!-- Cards dynamically populated by app.js -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="input-area">
+        <textarea id="question-input" placeholder="Ask a question about requisitions or status..."></textarea>
+        <button id="send-btn" onclick="sendMessage()">Send</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>

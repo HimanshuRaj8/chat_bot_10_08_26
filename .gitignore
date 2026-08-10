@@ -1,0 +1,48 @@
+# Python Cache & Virtual Environment
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+.env
+.env.local
+.env.*.local
+.pytest_cache/
+
+# Database & Runtime Stores
+chromadb_store/
+chromadb_store.backup/
+uploads/
+chat_history.json
+users.json
+employees.json
+logs/*.log
+*.log
+*.sqlite3
+
+# IDE & Editor Settings
+.vscode/
+.idea/
+*.swp
+*.swo
+.antigravity/
+.gemini/
+
+# Company Datasets & Document Files
+*.xlsx
+*.xls
+*.csv
+*.pdf
+!Sample/*.xlsx
+!Sample/*.xls
+!Sample/*.csv
+!Sample/*.pdf
+
+# Operating System Files
+.DS_Store
+.DS_Store?
+ehthumbs.db
+Thumbs.db
+
