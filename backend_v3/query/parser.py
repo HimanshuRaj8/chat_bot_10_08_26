@@ -483,6 +483,13 @@ CRITICAL RULES — read carefully:
 
     def _detect_description_keyword(self, q_lower: str) -> Optional[str]:
         categories = [
+            # Specific document title phrases
+            "newspaper and periodicals", "printing and stationery", "driver salary",
+            "internet charges", "travel expense", "travel foreign", "travel inland",
+            "vehicle running", "admin access", "business promotion", "cellphone",
+            "invention incentive", "it access", "lta", "meal", "referral reward",
+            "staff welfare",
+            # General keywords
             "travel", "hotel", "flight", "accommodation", "transport",
             "software", "hardware", "laptop", "computer", "equipment",
             "training", "course", "certification",
@@ -494,7 +501,7 @@ CRITICAL RULES — read carefully:
             "telephone", "internet", "parking", "conveyance", "news", 
             "newspaper", "periodical", "periodicals", "wifi", "broadband"
         ]
-        for cat in categories:
+        for cat in sorted(categories, key=len, reverse=True):
             if cat in q_lower:
                 return cat
 
@@ -574,6 +581,12 @@ CRITICAL RULES — read carefully:
 
     def _correct_intent_by_rules(self, plan: QueryPlan, q_lower: str) -> None:
         """Determines if the parsed intent matches exact codes, overriding if needed."""
+        # Ensure description_keyword is set if we detect one in the text but LLM/parser missed it
+        if not plan.filters.get("description_keyword"):
+            det_kw = self._detect_description_keyword(q_lower)
+            if det_kw:
+                plan.filters["description_keyword"] = det_kw
+
         # Detect exact requisition number if not already set
         if not plan.exact_req_no:
             plan.exact_req_no = self._detect_exact_req_no(plan.original_question)

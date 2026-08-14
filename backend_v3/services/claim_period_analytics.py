@@ -93,6 +93,7 @@ class ClaimPeriodAnalytics:
                 "claim_period_end": r.claim_period_end,
                 "status": r.status,
                 "approved_value_inr": r.approved_value_in_inr,
+                "document_title": r.document_title,
                 "description": r.description,
             })
         return timeline

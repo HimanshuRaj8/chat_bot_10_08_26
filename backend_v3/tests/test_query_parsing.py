@@ -57,3 +57,10 @@ def test_entity_resolver_no_data(entity_resolver):
     assert res is not None
     assert res.response_type == ResponseType.NO_DATA
     assert "couldn't find" in res.message
+
+
+def test_parse_newspaper_keyword(query_parser, employee_user):
+    plan = query_parser.parse_query("show me timeline for newspaper", employee_user)
+    assert plan.intent == QueryIntent.CLAIM_TIMELINE
+    assert plan.filters.get("description_keyword") == "newspaper"
+

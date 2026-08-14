@@ -69,12 +69,48 @@ class ResponseGenerator:
             timeline = result.data.get("timeline", []) if result.data else []
             kw = result.data.get("keyword") or "reimbursement"
             name = result.data.get("target_employee_name") or "User"
-            lines = [f"### 📅 {kw.title()} Reimbursement Timeline for {name}"]
+            
+            # Prevent double keyword title if kw is "reimbursement"
+            title_keyword = kw.title()
+            if title_keyword.lower() == "reimbursement":
+                title_text = f"### 📅 Reimbursement Timeline for {name}"
+            else:
+                title_text = f"### 📅 {title_keyword} Reimbursement Timeline for {name}"
+
+            if not timeline:
+                return f"No timeline data found for {kw}."
+
+            rows = []
             for t_item in timeline:
                 status_lower = t_item["status"].lower()
                 emoji = "✅" if "approved" in status_lower else "⏳" if any(w in status_lower for w in ("pending", "open", "waiting")) else "❌"
-                lines.append(f"- **{t_item['claim_period_text']}**: Requisition **{t_item['requisition_no']}** ({emoji} {t_item['status']}, Approved Value: ₹{t_item['approved_value_inr']:,.2f})")
-            return "\n".join(lines)
+                status_str = f"{emoji} {t_item['status']}"
+                
+                # Title and description merging logic
+                doc_title = (t_item.get("document_title") or "").strip()
+                desc = (t_item.get("description") or "").strip()
+                
+                # Truncate long descriptions to prevent table overflow
+                desc_truncated = desc[:100] + "..." if len(desc) > 100 else desc
+                
+                if doc_title and desc_truncated and doc_title.lower() != desc_truncated.lower():
+                    if doc_title.lower() in desc_truncated.lower():
+                        title_desc = desc_truncated
+                    else:
+                        title_desc = f"**{doc_title}**<br>{desc_truncated}"
+                else:
+                    title_desc = f"**{doc_title or desc_truncated or 'N/A'}**"
+
+                rows.append(
+                    f"| **{t_item['claim_period_text']}** | {t_item['requisition_no']} | {title_desc} | {status_str} | ₹{t_item['approved_value_inr']:,.2f} |"
+                )
+
+            table = (
+                "| Period | Requisition No | Title & Description | Status | Approved Value |\n"
+                "| --- | --- | --- | --- | --- |\n"
+                + "\n".join(rows)
+            )
+            return f"{title_text}\n\n{table}"
 
         if plan.intent == QueryIntent.CLAIM_MISSING_PERIOD:
             missing_data = result.data.get("missing", []) if result.data else []

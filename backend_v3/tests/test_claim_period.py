@@ -348,3 +348,16 @@ def test_regression_duration_and_year_bounds():
     assert r7["claim_period_start"] == "2025-07-01"
     assert r7["claim_period_end"] == "2025-07-31"
 
+
+def test_claim_timeline_response_formatting(chat_svc, employee_user):
+    resp = chat_svc.handle_message("Show my internet reimbursement timeline.", employee_user, "timeline_test_chat")
+    assert resp.success is True
+    # Verify that the message is formatted as a table and contains document titles and descriptions
+    assert "Period | Requisition No | Title & Description | Status | Approved Value" in resp.message
+    # Check that "Reimbursement" is not doubled (e.g. not "Reimbursement Reimbursement Timeline")
+    assert "Reimbursement Reimbursement" not in resp.message
+    # Check that document title from the mock repo is present
+    assert "Internet Charges_MITL" in resp.message
+    assert "Internet - July" in resp.message
+
+
