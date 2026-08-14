@@ -109,7 +109,7 @@ class QueryParser:
     def _parse_with_llm(self, question: str, user: CurrentUser, page: int, page_size: int) -> Optional[QueryPlan]:
         system_instruction = """You are a precise Query Plan parser. Output a single JSON object (no backticks, no extra text) mapping the user's request to this schema:
 {
-  "intent": "PROFILE" | "LIST_REQUISITIONS" | "GET_REQUISITION" | "GET_LATEST_REQUISITION" | "GET_PREVIOUS_REQUISITION" | "ANALYTICS" | "OUT_OF_SCOPE",
+  "intent": "PROFILE" | "LIST_REQUISITIONS" | "GET_REQUISITION" | "GET_LATEST_REQUISITION" | "GET_PREVIOUS_REQUISITION" | "ANALYTICS" | "OUT_OF_SCOPE" | "CLAIM_PERIOD_LOOKUP" | "CLAIM_TIMELINE" | "CLAIM_DUPLICATE_CHECK" | "CLAIM_OVERLAP_CHECK" | "CLAIM_MISSING_PERIOD" | "CLAIM_PERIOD_ANALYTICS",
   "entity": "Requisition" | "Employee" | "Department" | "CostCentre" | "OperationalUnit" | "Month" | "Quarter" | "Status",
   "metric": "approved_value_inr" | "value_inr" | "count" | "average_approved_value_inr" | null,
   "aggregation": "SUM" | "COUNT" | "AVG" | "MAX" | "MIN" | null,
@@ -135,6 +135,11 @@ CRITICAL RULES — read carefully:
 7. Exact requisition lookup -> intent="GET_REQUISITION", exact_req_no="G_XXX...".
 8. Never set "subject_scope" — authorization is handled separately.
 9. Plural or general list queries like "Show Ajay Tomar's requisitions" or "Find requisitions related to travel" must be parsed as intent="LIST_REQUISITIONS". intent="GET_REQUISITION" is strictly reserved for single record lookups where an exact code like "G_XXX" or "REQ-XXX" is provided.
+10. Reimbursement timelines ("show timeline", "parking timeline") -> intent="CLAIM_TIMELINE".
+11. Claim period checks ("Have I already claimed March?", "Did I claim for April?") -> intent="CLAIM_PERIOD_LOOKUP".
+12. Duplicate claims analysis ("Show duplicate parking", "Find duplicates") -> intent="CLAIM_DUPLICATE_CHECK".
+13. Overlapping claims analysis ("overlapping claims", "Which claims overlap?") -> intent="CLAIM_OVERLAP_CHECK".
+14. Missing periods check ("Am I missing any months?", "Which months have I missed?") -> intent="CLAIM_MISSING_PERIOD".
 """
         try:
             resp_text = self.llm.generate(question, system=system_instruction, format_json=True)
@@ -149,6 +154,12 @@ CRITICAL RULES — read carefully:
                 "GET_PREVIOUS_REQUISITION": QueryIntent.GET_PREVIOUS_REQUISITION,
                 "ANALYTICS": QueryIntent.ANALYTICS,
                 "OUT_OF_SCOPE": QueryIntent.OUT_OF_SCOPE,
+                "CLAIM_PERIOD_LOOKUP": QueryIntent.CLAIM_PERIOD_LOOKUP,
+                "CLAIM_TIMELINE": QueryIntent.CLAIM_TIMELINE,
+                "CLAIM_DUPLICATE_CHECK": QueryIntent.CLAIM_DUPLICATE_CHECK,
+                "CLAIM_OVERLAP_CHECK": QueryIntent.CLAIM_OVERLAP_CHECK,
+                "CLAIM_MISSING_PERIOD": QueryIntent.CLAIM_MISSING_PERIOD,
+                "CLAIM_PERIOD_ANALYTICS": QueryIntent.CLAIM_PERIOD_ANALYTICS,
             }
             entity_map = {
                 "Requisition": QueryEntity.REQUISITION,
@@ -229,6 +240,36 @@ CRITICAL RULES — read carefully:
         keyword = self._detect_description_keyword(q_lower)
         if keyword:
             plan.filters["description_keyword"] = keyword
+
+        if any(w in q_lower for w in ["timeline", "history", "chronological", "track", "which months", "what months"]):
+            plan.intent = QueryIntent.CLAIM_TIMELINE
+            plan.output_type = OutputType.NATURAL_TEXT
+            return plan
+
+        if "missing" in q_lower and ("month" in q_lower or "period" in q_lower or "claim" in q_lower):
+            plan.intent = QueryIntent.CLAIM_MISSING_PERIOD
+            plan.output_type = OutputType.NATURAL_TEXT
+            return plan
+
+        if "duplicate" in q_lower:
+            plan.intent = QueryIntent.CLAIM_DUPLICATE_CHECK
+            plan.output_type = OutputType.NATURAL_TEXT
+            return plan
+
+        if "overlap" in q_lower or "overlapping" in q_lower:
+            plan.intent = QueryIntent.CLAIM_OVERLAP_CHECK
+            plan.output_type = OutputType.NATURAL_TEXT
+            return plan
+
+        if any(p in q_lower for p in [
+            "what period", "which period", "period did i", "period of my", "already claimed", 
+            "did i claim", "have i claimed", "latest claim period", "latest claim", 
+            "last claim period", "last claim", "latest reimbursement", "latest claim",
+            "previous one", "what about the previous"
+        ]):
+            plan.intent = QueryIntent.CLAIM_PERIOD_LOOKUP
+            plan.output_type = OutputType.NATURAL_TEXT
+            return plan
 
         # 5. Exact Requisition lookup
         req_no = self._detect_exact_req_no(question)
@@ -450,7 +491,8 @@ CRITICAL RULES — read carefully:
             "subscription", "license", "driver", "salary", "wages", "food",
             "catering", "uniform", "printing", "courier", "logistics",
             "electricity", "rent", "security", "cleaning", "insurance",
-            "telephone", "internet",
+            "telephone", "internet", "parking", "conveyance", "news", 
+            "newspaper", "periodical", "periodicals", "wifi", "broadband"
         ]
         for cat in categories:
             if cat in q_lower:
@@ -518,7 +560,7 @@ CRITICAL RULES — read carefully:
 
     def _detect_named_employee(self, q_lower: str) -> Tuple[Optional[str], Optional[str]]:
         possessive = re.search(
-            r"\b([A-Z][a-z]+(?: [A-Z][a-z]+)?)'s?\s+\w+", 
+            r"\b([A-Z][a-z]+(?: [A-Z][a-z]+)?)'[sS]?\s+\w+", 
             q_lower.title()
         )
         if possessive:
@@ -571,5 +613,14 @@ CRITICAL RULES — read carefully:
             plan.group_by = "quarter_period"
 
         if has_list_keyword and not has_analytics_signal and not plan.exact_req_no:
-            if plan.intent not in (QueryIntent.GET_LATEST_REQUISITION, QueryIntent.GET_PREVIOUS_REQUISITION):
+            if plan.intent not in (
+                QueryIntent.GET_LATEST_REQUISITION, 
+                QueryIntent.GET_PREVIOUS_REQUISITION,
+                QueryIntent.CLAIM_TIMELINE,
+                QueryIntent.CLAIM_MISSING_PERIOD,
+                QueryIntent.CLAIM_PERIOD_LOOKUP,
+                QueryIntent.CLAIM_DUPLICATE_CHECK,
+                QueryIntent.CLAIM_OVERLAP_CHECK,
+                QueryIntent.CLAIM_PERIOD_ANALYTICS,
+            ):
                 plan.intent = QueryIntent.LIST_REQUISITIONS

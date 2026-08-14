@@ -1,6 +1,6 @@
-# Enterprise Approval System AI Assistant (Version 3.0)
+# Enterprise Approval System AI Assistant (Version 3.1)
 
-[![Backend V3 Test Suite](https://img.shields.io/badge/V3%20Tests-39%2F39%20Passing-brightgreen)](backend_v3/tests/)
+[![Backend V3 Test Suite](https://img.shields.io/badge/V3%20Tests-57%2F57%20Passing-brightgreen)](backend_v3/tests/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](https://www.python.org/)
 [![Flask](https://img.shields.io/badge/Flask-3.0%2B-black)](https://flask.palletsprojects.com/)
 [![Cross-Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-orange)](https://github.com/HimanshuRaj8/chat_bot_10_08_26)
@@ -10,11 +10,12 @@ An enterprise-grade, role-aware AI Assistant for natural language querying of ap
 
 ---
 
-## 🌟 What's New in Version 3.0
+## 🌟 What's New in Version 3.1
 
+- 🧠 **Claim Period Intelligence**: Automatic extraction of reimbursement claim periods from unstructured texts. Features duration suffix protection (e.g. `30 Days`) and context ref-year validation window bounds.
 - 🚀 **Modular Core Architecture**: Clean separation of Authentication, Security Boundaries, Query Parsing, Context Resolution, Repositories, Analytics, and Presentation.
 - 💬 **Relative Pronoun & Multi-Turn Context**: Resolves follow-up queries naturally (e.g. `"Who approved it?"`, `"What is its requested value?"`, `"Previous one"`).
-- 📊 **Markdown Table Rendering**: Automatic tabular response generation for multi-record lists and monthly/quarterly aggregations.
+- 📊 **Markdown Table Rendering**: Automatic tabular response generation for multi-record lists, duplicate warnings, and timeline views.
 - 🛡️ **Strict Deterministic Security**: Zero LLM authorization leaks — security scopes are enforced by a dedicated gateway before repository execution.
 - 🌐 **Dynamic Frontend Origin Binding**: Automatically binds UI requests to the port serving the application (`http://localhost:8002`).
 - 🖥️ **Full Cross-Platform Compatibility**: Native support for **Windows**, **macOS**, and **Linux** runtimes.

@@ -110,3 +110,26 @@ To guarantee seamless execution on **Windows**, **macOS**, and **Linux**:
 ## 5. RAG Isolation Strategy
 
 Tabular requisition data and financial aggregations bypass vector store search entirely to eliminate hallucination risk. Structured data is executed strictly via Python/Pandas logic.
+
+---
+
+## 6. Claim Period Intelligence Architecture
+
+The **Claim Period Intelligence** system acts as an incremental analytics layer that automatically extracts, validates, and reports on reimbursement claim periods found within the free-text description fields of requisitions.
+
+### 6.1 Extraction Pipeline (`backend_v3/utils/claim_period_extractor.py`)
+- `ClaimPeriodExtractor`: A deterministic regex parsing utility that scans description texts on database reload/upload.
+- Extracts start and end dates, months covered, and display strings.
+- **Duration Protection**: Prevents matched numbers followed by duration keywords (e.g. `days`, `months`, `weeks`) from being misidentified as years (e.g., `"30 Days"` does not match year `2030`).
+- **Sanity Window Check**: Validates extracted years against the context range `[Created On Year - 5, Created On Year + 1]`. Any year outside this window is treated as an accidental match and falls back to the record's creation year.
+
+### 6.2 Claim Analytics Engine (`backend_v3/services/claim_period_analytics.py`)
+- `ClaimPeriodAnalytics`: Provides specialized Python and Pandas query routines:
+  - **Timeline Generation**: Chronological listing of claims by category.
+  - **Duplicate Detection**: Identifies identical category claims sharing overlapping months.
+  - **Overlap Detection**: Identifies overlapping date ranges within the same category.
+  - **Missing Months Scan**: Flags missing months inside an employee's claim duration.
+
+### 6.3 Integrated Security & Context
+- Scopes results automatically based on user role authorization constraints.
+- Conversation context memory carries forward claim categories across multi-turn sessions.

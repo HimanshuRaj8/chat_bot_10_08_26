@@ -17,6 +17,14 @@ class QueryIntent(str, Enum):
     OUT_OF_SCOPE            = "OUT_OF_SCOPE"
     NO_DATA                 = "NO_DATA"
     ERROR                   = "ERROR"
+    
+    # Claim Period Intelligence Intents
+    CLAIM_PERIOD_LOOKUP     = "CLAIM_PERIOD_LOOKUP"
+    CLAIM_TIMELINE          = "CLAIM_TIMELINE"
+    CLAIM_DUPLICATE_CHECK   = "CLAIM_DUPLICATE_CHECK"
+    CLAIM_OVERLAP_CHECK     = "CLAIM_OVERLAP_CHECK"
+    CLAIM_MISSING_PERIOD    = "CLAIM_MISSING_PERIOD"
+    CLAIM_PERIOD_ANALYTICS  = "CLAIM_PERIOD_ANALYTICS"
 
 
 class SubjectScope(str, Enum):

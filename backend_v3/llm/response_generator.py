@@ -25,7 +25,6 @@ class ResponseGenerator:
 
         t = result.response_type
 
-        # ── 1. Error / Clarification / Out of Scope ──────────────────────────
         if t == ResponseType.ERROR:
             return result.message
         elif t == ResponseType.CLARIFICATION:
@@ -34,6 +33,125 @@ class ResponseGenerator:
             return "I can help with requisitions, approvals, reimbursements, approval status, and authorized approval-system analytics."
         elif t == ResponseType.NO_DATA:
             return result.message or "I couldn't find any matching requisitions in the available approval-system data."
+
+        # ── Claim Period Intelligence Response Formatting ──────────────────────
+        if plan.intent == QueryIntent.CLAIM_PERIOD_LOOKUP:
+            if result.data and "check_period" in result.data:
+                records = result.data.get("records", [])
+                kw = result.data.get("keyword") or "reimbursement"
+                period = result.data.get("check_period")
+                if records:
+                    r = records[0]
+                    status = r.get("status", "Pending")
+                    req_no = r.get("requisition_no")
+                    return f"Yes, you have already claimed {kw} reimbursement for **{period}** (Requisition **{req_no}**, status: **{status}**)."
+                else:
+                    return f"No, you have not claimed {kw} reimbursement for **{period}** yet."
+            elif result.data and result.data.get("is_last_period"):
+                rec = result.data.get("record", {})
+                kw = result.data.get("keyword") or "reimbursement"
+                period = rec.get("claim_period_text") or "an unknown period"
+                status = rec.get("status") or "Pending"
+                created = rec.get("created_on") or "N/A"
+                approved_date = rec.get("finally_approved_on") or "N/A"
+                status_lower = status.lower()
+                if "approved" in status_lower:
+                    status_desc = "Approved"
+                elif any(w in status_lower for w in ("pending", "open", "waiting")):
+                    status_desc = "Pending"
+                else:
+                    status_desc = status
+                
+                date_part = f"approved on **{approved_date}**" if approved_date and "approved" in status_lower else f"submitted on **{created}**"
+                return f"Your latest {kw} reimbursement covered **{period}**. It was {date_part} and is currently **{status_desc}**."
+
+        if plan.intent == QueryIntent.CLAIM_TIMELINE:
+            timeline = result.data.get("timeline", []) if result.data else []
+            kw = result.data.get("keyword") or "reimbursement"
+            name = result.data.get("target_employee_name") or "User"
+            lines = [f"### 📅 {kw.title()} Reimbursement Timeline for {name}"]
+            for t_item in timeline:
+                status_lower = t_item["status"].lower()
+                emoji = "✅" if "approved" in status_lower else "⏳" if any(w in status_lower for w in ("pending", "open", "waiting")) else "❌"
+                lines.append(f"- **{t_item['claim_period_text']}**: Requisition **{t_item['requisition_no']}** ({emoji} {t_item['status']}, Approved Value: ₹{t_item['approved_value_inr']:,.2f})")
+            return "\n".join(lines)
+
+        if plan.intent == QueryIntent.CLAIM_MISSING_PERIOD:
+            missing_data = result.data.get("missing", []) if result.data else []
+            kw = result.data.get("keyword") or "reimbursement"
+            scope = result.data.get("scope") if result.data else "CURRENT_USER"
+            
+            if not missing_data:
+                return f"No missing months detected for {kw} within your claim period range."
+                
+            if scope == "CURRENT_USER" or len(missing_data) == 1:
+                item = missing_data[0]
+                months_str = ", ".join(item["missing_months"])
+                return f"You are missing the following months for **{kw}** reimbursement: **{months_str}** (analyzed range: {item['period_range']})."
+            else:
+                rows = []
+                for item in missing_data:
+                    months_str = ", ".join(item["missing_months"])
+                    rows.append(f"| {item['employee_name']} ({item['employee_id']}) | {months_str} | {item['period_range']} |")
+                table = (
+                    "| Employee | Missing Months | Analyzed Range |\n"
+                    "| --- | --- | --- |\n"
+                    + "\n".join(rows)
+                )
+                return f"Below are the employees with missing **{kw}** claim periods:\n\n{table}"
+
+        if plan.intent == QueryIntent.CLAIM_DUPLICATE_CHECK:
+            duplicates = result.data.get("duplicates", []) if result.data else []
+            kw = result.data.get("keyword") or "reimbursement"
+            if not duplicates:
+                return f"No potential duplicate claims detected for {kw}."
+            
+            rows = []
+            for d in duplicates:
+                overlapping_str = ", ".join(d["overlapping_months"])
+                rows.append(
+                    f"| {d['employee_name']} ({d['employee_id']}) | {d['category']} | {d['requisition_1']} ({d['period_1']}, {d['status_1']}, ₹{d['value_1']:,.2f}) | {d['requisition_2']} ({d['period_2']}, {d['status_2']}, ₹{d['value_2']:,.2f}) | {overlapping_str} |"
+                )
+            
+            table = (
+                "| Employee | Category | Requisition 1 | Requisition 2 | Overlapping Months |\n"
+                "| --- | --- | --- | --- | --- |\n"
+                + "\n".join(rows)
+            )
+            return f"### ⚠️ Potential Duplicate Claims Detected\n\n{table}"
+
+        if plan.intent == QueryIntent.CLAIM_OVERLAP_CHECK:
+            overlaps = result.data.get("overlaps", []) if result.data else []
+            kw = result.data.get("keyword") or "reimbursement"
+            if not overlaps:
+                return f"No overlapping claims detected for {kw}."
+            
+            # If the query specifically asks about department, summarize the most overlapping department
+            q_lower = plan.original_question.lower()
+            summary_header = ""
+            if "department" in q_lower:
+                dept_counts = {}
+                for o in overlaps:
+                    dept = o.get("department") or "Unknown"
+                    dept_counts[dept] = dept_counts.get(dept, 0) + 1
+                if dept_counts:
+                    sorted_depts = sorted(dept_counts.items(), key=lambda x: x[1], reverse=True)
+                    most_dept, max_count = sorted_depts[0]
+                    summary_header = f"The department with the most overlapping claims is **{most_dept}** with **{max_count}** overlapping claim pair(s).\n\n"
+
+            rows = []
+            for o in overlaps:
+                dept_str = f" ({o['department']})" if o.get("department") else ""
+                rows.append(
+                    f"| {o['employee_name']}{dept_str} ({o['employee_id']}) | {o['category']} | {o['requisition_1']} ({o['period_1']}, {o['status_1']}) | {o['requisition_2']} ({o['period_2']}, {o['status_2']}) | {o['overlap_start']} to {o['overlap_end']} |"
+                )
+                
+            table = (
+                "| Employee | Category | Requisition 1 | Requisition 2 | Overlap Period |\n"
+                "| --- | --- | --- | --- | --- |\n"
+                + "\n".join(rows)
+            )
+            return f"{summary_header}### ⚠️ Overlapping Claim Periods Detected\n\n{table}"
 
         # ── 2. Profile Metrics ────────────────────────────────────────────────
         if plan.intent == QueryIntent.PROFILE:

@@ -10,7 +10,7 @@ import pandas as pd
 from models.requisition import RequisitionRecord
 from models.query import QueryPlan, SubjectScope, DateRange
 from models.user import CurrentUser
-from .excel_provider import ExcelDataProvider
+from .excel_provider import ExcelDataProvider, _clean_val, _clean_list
 
 logger = logging.getLogger(__name__)
 
@@ -432,6 +432,11 @@ class RequisitionRepository:
                     hod_approved_value=self._safe_float(row.get("HOD Approved Value", 0.0)),
                     status=str(row.get("Status", "")).strip(),
                     approved_by=str(row.get("Approved By", "")).strip(),
+                    claim_period_start=_clean_val(row.get("claim_period_start")) if "claim_period_start" in row else None,
+                    claim_period_end=_clean_val(row.get("claim_period_end")) if "claim_period_end" in row else None,
+                    claim_period_text=_clean_val(row.get("claim_period_text")) if "claim_period_text" in row else None,
+                    claim_months=_clean_list(row.get("claim_months")) if "claim_months" in row else None,
+                    period_confidence=_clean_val(row.get("period_confidence")) if "period_confidence" in row else None,
                 )
             )
         return records

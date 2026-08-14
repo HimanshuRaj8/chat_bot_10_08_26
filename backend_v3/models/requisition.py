@@ -30,6 +30,13 @@ class RequisitionRecord:
     status: str = ""
     approved_by: str = ""
 
+    # Claim Period Intelligence fields
+    claim_period_start: Optional[str] = None
+    claim_period_end: Optional[str] = None
+    claim_period_text: Optional[str] = None
+    claim_months: Optional[list] = None
+    period_confidence: Optional[str] = None
+
     def to_source_dict(self) -> dict:
         """Compact representation for API source records."""
         return {
@@ -44,4 +51,9 @@ class RequisitionRecord:
             "description": self.description[:80] + "..." if len(self.description) > 80 else self.description,
             "created_on": self.created_on,
             "approved_by": self.approved_by,
+            "claim_period_start": self.claim_period_start,
+            "claim_period_end": self.claim_period_end,
+            "claim_period_text": self.claim_period_text,
+            "claim_months": self.claim_months,
+            "period_confidence": self.period_confidence,
         }

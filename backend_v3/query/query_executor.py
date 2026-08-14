@@ -214,6 +214,123 @@ class QueryExecutor:
                         applied_filters=self._build_applied_filters(plan),
                     )
 
+            if plan.intent == QueryIntent.CLAIM_PERIOD_LOOKUP:
+                keyword = plan.filters.get("description_keyword")
+                if plan.date_range and (plan.date_range.start or plan.date_range.end):
+                    records, _ = self.requisition_repo.get_requisitions(
+                        scope=plan.subject_scope,
+                        employee_id=plan.target_employee_id,
+                        keyword=keyword,
+                        page=1,
+                        page_size=1000,
+                    )
+                    overlap_records = []
+                    for r in records:
+                        if r.claim_period_start and r.claim_period_end:
+                            p_start = plan.date_range.start
+                            p_end = plan.date_range.end
+                            if hasattr(p_start, "strftime"):
+                                p_start = p_start.strftime("%Y-%m-%d")
+                            if hasattr(p_end, "strftime"):
+                                p_end = p_end.strftime("%Y-%m-%d")
+                            
+                            p_start_str = str(p_start) if p_start else "1970-01-01"
+                            p_end_str = str(p_end) if p_end else "2099-12-31"
+                            
+                            if r.claim_period_start <= p_end_str and r.claim_period_end >= p_start_str:
+                                overlap_records.append(r.to_source_dict())
+                    
+                    return VerifiedResult(
+                        success=True,
+                        response_type=ResponseType.ANALYTICS,
+                        message="Claim period lookup completed.",
+                        data={"records": overlap_records, "check_period": plan.date_range.label, "keyword": keyword},
+                        sources=overlap_records,
+                    )
+                else:
+                    from services.claim_period_analytics import ClaimPeriodAnalytics
+                    analytics_service = ClaimPeriodAnalytics(self.requisition_repo)
+                    last_period = analytics_service.get_last_claimed_period(
+                        scope=plan.subject_scope,
+                        employee_id=plan.target_employee_id,
+                        keyword=keyword
+                    )
+                    if not last_period:
+                        return self._no_data_result(plan, f"No previous claim found for {keyword or 'any category'}.")
+                    return VerifiedResult(
+                        success=True,
+                        response_type=ResponseType.SINGLE_RECORD,
+                        message="Found last claimed period.",
+                        data={"record": last_period, "is_last_period": True, "keyword": keyword},
+                        sources=[last_period],
+                    )
+
+            elif plan.intent == QueryIntent.CLAIM_TIMELINE:
+                from services.claim_period_analytics import ClaimPeriodAnalytics
+                analytics_service = ClaimPeriodAnalytics(self.requisition_repo)
+                keyword = plan.filters.get("description_keyword")
+                timeline = analytics_service.get_claim_timeline(
+                    scope=plan.subject_scope,
+                    employee_id=plan.target_employee_id,
+                    keyword=keyword
+                )
+                if not timeline:
+                    return self._no_data_result(plan, f"No timeline data found for {keyword or 'reimbursements'}.")
+                return VerifiedResult(
+                    success=True,
+                    response_type=ResponseType.ANALYTICS,
+                    message="Claim timeline generated.",
+                    data={"timeline": timeline, "keyword": keyword, "target_employee_name": plan.target_employee_name or user.employee_name},
+                )
+
+            elif plan.intent == QueryIntent.CLAIM_MISSING_PERIOD:
+                from services.claim_period_analytics import ClaimPeriodAnalytics
+                analytics_service = ClaimPeriodAnalytics(self.requisition_repo)
+                keyword = plan.filters.get("description_keyword")
+                missing = analytics_service.find_missing_periods(
+                    scope=plan.subject_scope,
+                    employee_id=plan.target_employee_id,
+                    keyword=keyword
+                )
+                return VerifiedResult(
+                    success=True,
+                    response_type=ResponseType.ANALYTICS,
+                    message="Missing periods check completed.",
+                    data={"missing": missing, "keyword": keyword, "scope": plan.subject_scope.value},
+                )
+
+            elif plan.intent == QueryIntent.CLAIM_DUPLICATE_CHECK:
+                from services.claim_period_analytics import ClaimPeriodAnalytics
+                analytics_service = ClaimPeriodAnalytics(self.requisition_repo)
+                keyword = plan.filters.get("description_keyword")
+                duplicates = analytics_service.find_duplicate_periods(
+                    scope=plan.subject_scope,
+                    employee_id=plan.target_employee_id,
+                    keyword=keyword
+                )
+                return VerifiedResult(
+                    success=True,
+                    response_type=ResponseType.ANALYTICS,
+                    message="Duplicate claims check completed.",
+                    data={"duplicates": duplicates, "keyword": keyword},
+                )
+
+            elif plan.intent == QueryIntent.CLAIM_OVERLAP_CHECK:
+                from services.claim_period_analytics import ClaimPeriodAnalytics
+                analytics_service = ClaimPeriodAnalytics(self.requisition_repo)
+                keyword = plan.filters.get("description_keyword")
+                overlaps = analytics_service.find_overlapping_periods(
+                    scope=plan.subject_scope,
+                    employee_id=plan.target_employee_id,
+                    keyword=keyword
+                )
+                return VerifiedResult(
+                    success=True,
+                    response_type=ResponseType.ANALYTICS,
+                    message="Overlapping claims check completed.",
+                    data={"overlaps": overlaps, "keyword": keyword},
+                )
+
             if plan.intent == QueryIntent.OUT_OF_SCOPE:
                 return VerifiedResult(
                     success=True,

@@ -77,10 +77,15 @@ class ContextResolver:
                 "there", "total", "sum", "average", "avg", "mean", 
                 "max", "min", "highest", "lowest", "count", "how many", 
                 "who", "when", "what", "where", "compare", "which", "instead", 
-                "details", "more", "approved", "pending", "rejected", "reimbursement"
+                "details", "more", "approved", "pending", "rejected", "reimbursement",
+                "missing", "month", "months", "timeline", "duplicate", "overlap", "overlapping", "period"
             ])
             or (
-                plan.intent in (QueryIntent.ANALYTICS, QueryIntent.LIST_REQUISITIONS, QueryIntent.GET_LATEST_REQUISITION)
+                plan.intent in (
+                    QueryIntent.ANALYTICS, QueryIntent.LIST_REQUISITIONS, QueryIntent.GET_LATEST_REQUISITION,
+                    QueryIntent.CLAIM_TIMELINE, QueryIntent.CLAIM_MISSING_PERIOD, QueryIntent.CLAIM_PERIOD_LOOKUP,
+                    QueryIntent.CLAIM_DUPLICATE_CHECK, QueryIntent.CLAIM_OVERLAP_CHECK
+                )
                 and not plan.filters.get("status")
                 and not plan.filters.get("description_keyword")
                 and (not plan.date_range or (not plan.date_range.start and not plan.date_range.end))

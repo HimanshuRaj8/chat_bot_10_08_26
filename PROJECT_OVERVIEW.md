@@ -25,17 +25,17 @@ The **Enterprise Approval System AI Assistant** is a role-aware, production-grad
 ### 👤 Employee Role (`rahul.karn@motherson.com`)
 - **Focus**: Personal claims, status tracking, reimbursements, profile info.
 - **Sample Queries**:
-  - *"What is my employee ID?"*
   - *"What is the status of my latest requisition?"*
   - *"Who approved it?"*
-  - *"Show my pending requisitions."*
+  - *"Show my internet reimbursement timeline."*
+  - *"Have I already claimed April internet reimbursement?"*
 
 ### 📊 Finance Role (`TEMP99@motherson.com`)
-- **Focus**: Organization-wide financial analytics, department rankings, trend analysis, audit lists.
+- **Focus**: Organization-wide financial analytics, department rankings, trend analysis, audit lists, compliance checks.
 - **Sample Queries**:
   - *"Which department has the highest approved value?"*
-  - *"April month requisition"*
-  - *"Show all approved requisitions"*
+  - *"Show duplicate parking claims."*
+  - *"Which department has the most overlapping claims?"*
 
 ### 🛡️ Admin Role (`admin@motherson.com`)
 - **Focus**: System health monitoring, active telemetry, uploading updated 3-Excel enterprise datasets (`Requisitions.xlsx`, `Employees.xlsx`, `Finance.xlsx`).
@@ -48,9 +48,10 @@ The **Enterprise Approval System AI Assistant** is a role-aware, production-grad
 |---|---|
 | **Deterministic Parsing** | Dual query planner using LLM structured JSON output with fallback to regex parsing. |
 | **Context Memory** | Resolves pronouns (`it`, `its`) and follow-up pagination (`next page`, `previous one`). |
-| **Markdown Tables** | Renders formatted HTML/Markdown tables for multi-record lists and monthly aggregations. |
+| **Claim Period Intelligence** | Parsing of unstructured description fields to extract date ranges with duration protection and contextual year validation. |
+| **Markdown Tables** | Renders formatted HTML/Markdown tables for multi-record lists, duplicate warnings, and timelines. |
 | **Dynamic Port Binding** | Web client binds automatically via `window.location.origin` (Port 8002 for V3). |
-| **Automated Testing** | 39 passing unit & integration tests for Version 3. |
+| **Automated Testing** | 57 passing unit & integration tests for Version 3, including claim-period regression tests. |
 
 ---
 

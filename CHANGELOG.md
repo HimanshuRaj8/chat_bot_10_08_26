@@ -4,6 +4,18 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## [3.1.0] — 2026-08-14
+
+### Added
+- **Claim Period Intelligence**: Incremental analytics feature addition for extracting and validating claim periods from free-text descriptions.
+- **Claim Extractor Engine**: Deterministic regex parsing of claim date ranges, single months, multi-month ranges, and Created On fallbacks.
+- **Duration Suffix Protection**: Protects duration numbers (e.g. `30 Days`, `48 days`, `3 months`) from being matched as year numbers.
+- **Year Sanity Check**: Ensures parsed years reside in the contextual range `[Created On Year - 5, Created On Year + 1]` to filter false positives.
+- **Organization Analytics Services**: Chronological timelines, identical duplicate detection, overlap date checks, and missing-period scans.
+- **Claim Period Test Suite**: Added 28 new regression test cases, bringing the total passing test count to 57.
+
+---
+
 ## [3.0.0] — 2026-08-10
 
 ### Added

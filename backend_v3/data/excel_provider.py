@@ -14,6 +14,31 @@ from models.user import CurrentUser, UserRole
 logger = logging.getLogger(__name__)
 
 
+def _clean_val(val):
+    if val is None or pd.isna(val) or str(val).strip().lower() in ("nan", "none", "null", ""):
+        return None
+    return str(val).strip()
+
+
+def _clean_list(val):
+    if val is None:
+        return None
+    if isinstance(val, list):
+        return val
+    if isinstance(val, float) and pd.isna(val):
+        return None
+    if isinstance(val, str):
+        val_str = val.strip()
+        if val_str.startswith("[") and val_str.endswith("]"):
+            import ast
+            try:
+                return ast.literal_eval(val_str)
+            except Exception:
+                pass
+        return [val_str]
+    return None
+
+
 class ExcelDataProvider:
 
     _REQ_COL_ALIASES: Dict[str, str] = {
@@ -277,6 +302,34 @@ class ExcelDataProvider:
                 if col in df.columns:
                     df[col] = pd.to_datetime(df[col], dayfirst=True, errors="coerce")
 
+            # Enrich with Claim Period Intelligence
+            from utils.claim_period_extractor import ClaimPeriodExtractor
+            extractor = ClaimPeriodExtractor()
+            
+            claim_period_starts = []
+            claim_period_ends = []
+            claim_period_texts = []
+            claim_months_lists = []
+            period_confidences = []
+            
+            for idx, row in df.iterrows():
+                desc = str(row.get("Requisition Description", ""))
+                title = str(row.get("Document Title", ""))
+                created = row.get("Created On")
+                
+                info = extractor.extract_period(desc, title, created)
+                claim_period_starts.append(info["claim_period_start"])
+                claim_period_ends.append(info["claim_period_end"])
+                claim_period_texts.append(info["claim_period_text"])
+                claim_months_lists.append(info["claim_months"])
+                period_confidences.append(info["period_confidence"])
+                
+            df["claim_period_start"] = claim_period_starts
+            df["claim_period_end"] = claim_period_ends
+            df["claim_period_text"] = claim_period_texts
+            df["claim_months"] = claim_months_lists
+            df["period_confidence"] = period_confidences
+
             # Build RequisitionRecord objects
             for idx, row in df.iterrows():
                 created_val = row.get("Created On", "")
@@ -310,6 +363,12 @@ class ExcelDataProvider:
                     hod_approved_value=pd.to_numeric(row.get("HOD Approved Value", 0.0), errors="coerce") or 0.0,
                     status=str(row.get("Status", "")).strip(),
                     approved_by=str(row.get("Approved By", "")).strip(),
+                    
+                    claim_period_start=_clean_val(row.get("claim_period_start")),
+                    claim_period_end=_clean_val(row.get("claim_period_end")),
+                    claim_period_text=_clean_val(row.get("claim_period_text")),
+                    claim_months=_clean_list(row.get("claim_months")),
+                    period_confidence=_clean_val(row.get("period_confidence")),
                 )
                 records.append(rec)
 

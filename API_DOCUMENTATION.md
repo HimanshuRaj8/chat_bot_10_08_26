@@ -174,3 +174,26 @@ Executes a natural language query with automatic role authorization, entity reso
     "message": "Successfully reloaded dataset. 236 active records loaded."
   }
   ```
+
+---
+
+## 🧠 Claim Period Intelligence Features
+
+Requisition records automatically undergo deterministic claim period extraction on load/refresh. Free-text description fields are parsed to derive structured period metadata.
+
+### 1. Enriched Fields in Source Records
+Every requisition record in chat sources contains these derived fields:
+- `claim_period_start` (string, `YYYY-MM-DD` or `null`): Start date of the claim period.
+- `claim_period_end` (string, `YYYY-MM-DD` or `null`): End date of the claim period.
+- `claim_period_text` (string, e.g. `"Mar-2026"`, `"18-Feb-2026 to 03-Apr-2026"`, or `"Not determined"`): Structured display string.
+- `claim_months` (array of strings, e.g. `["2026-03"]`): List of all months covered by the claim.
+- `period_confidence` (string, `HIGH` | `MEDIUM` | `LOW`): Confidence rating of the extraction.
+
+### 2. Supported Natural Language Analytics
+Users can execute the following analytical operations:
+- **Timeline Lookup:** `Show my internet reimbursement timeline.` -> Displays chronological list of claims.
+- **Period Checks:** `Have I already claimed March internet reimbursement?` -> Checks overlaps in that period.
+- **Missing Periods Analysis:** `Am I missing any months for internet?` -> Scans monthly claim continuity.
+- **Duplicate Detection (Finance):** `Show duplicate parking claims.` -> Finds identical category claims within the same month.
+- **Overlap Checks (Finance):** `Which claims have overlapping periods?` -> Finds date-range overlaps for the same employee and category.
+
